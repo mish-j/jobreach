@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import StatsCard from './StatsCard';
 import FileStatsCard from './FileStatsCard';
 import RecentActivity from './RecentActivity';
 import { fileService } from '../../utils/fileService';
 import { emailService } from '../../utils/emailService';
 
-const DashboardOverview = () => {
+const DashboardOverview = forwardRef((props, ref) => {
     const [stats, setStats] = useState({
         totalEmails: 0,
         sentEmails: 0,
@@ -30,8 +30,10 @@ const DashboardOverview = () => {
 
             // Calculate email statistics
             const totalEmails = emails.length;
-            const sentEmails = 0; // We'll need to implement email status tracking
-            const pendingAuth = 0; // We'll need to implement auth tracking
+            const sentEmails = emails.filter(email => email.status === 'sent').length;
+            const authorizedEmails = emails.filter(email => email.status === 'authorized').length;
+            const verifiedEmails = emails.filter(email => email.status === 'verified').length;
+            const pendingAuth = emails.filter(email => email.status === 'draft').length;
 
             setStats(prevStats => ({
                 ...prevStats,
@@ -40,7 +42,7 @@ const DashboardOverview = () => {
                 totalEmails,
                 sentEmails,
                 pendingAuth,
-                responseRate: totalEmails > 0 ? '24.3%' : '0%' // Mock response rate for now
+                responseRate: sentEmails > 0 ? Math.round((sentEmails / totalEmails) * 100) + '%' : '0%'
             }));
         } catch (error) {
             console.error('Failed to load dashboard data:', error);
@@ -48,6 +50,11 @@ const DashboardOverview = () => {
             setIsLoading(false);
         }
     };
+
+    // Expose refresh method to parent component
+    useImperativeHandle(ref, () => ({
+        refreshData: loadDashboardData
+    }));
 
     const statsCards = [
         {
@@ -157,6 +164,6 @@ const DashboardOverview = () => {
             <RecentActivity />
         </div>
     );
-};
+});
 
 export default DashboardOverview;

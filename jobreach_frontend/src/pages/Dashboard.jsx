@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Sidebar from '../components/dashboard/Sidebar';
 import DashboardOverview from '../components/dashboard/DashboardOverview';
 import EmailManagement from '../components/dashboard/EmailManagement';
@@ -8,21 +8,29 @@ import Analytics from '../components/dashboard/Analytics';
 
 const Dashboard = ({ user, onLogout }) => {
     const [activeSection, setActiveSection] = useState('dashboard');
+    const dashboardRef = useRef();
+
+    const refreshDashboard = () => {
+        // This will trigger a refresh of dashboard data
+        if (dashboardRef.current) {
+            dashboardRef.current.refreshData();
+        }
+    };
 
     const renderContent = () => {
         switch (activeSection) {
             case 'dashboard':
-                return <DashboardOverview />;
+                return <DashboardOverview ref={dashboardRef} />;
             case 'email-management':
-                return <EmailManagement />;
+                return <EmailManagement onDataChange={refreshDashboard} />;
             case 'generate-emails':
-                return <GenerateEmails setActiveSection={setActiveSection} />;
+                return <GenerateEmails setActiveSection={setActiveSection} onDataChange={refreshDashboard} />;
             case 'file-management':
-                return <FileManagement />;
+                return <FileManagement onDataChange={refreshDashboard} />;
             case 'analytics':
                 return <Analytics />;
             default:
-                return <DashboardOverview />;
+                return <DashboardOverview ref={dashboardRef} />;
         }
     };
 

@@ -3,15 +3,12 @@ import { emailService } from '../../utils/emailService';
 import EmailViewModal from './EmailViewModal';
 import EmailEditModal from './EmailEditModal';
 
-const EmailManagement = () => {
+const EmailManagement = ({ onDataChange }) => {
     const [emails, setEmails] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [filter, setFilter] = useState('all'); // all, sent, draft, pending
-    const [selectedEmails, setSelectedEmails] = useState([]);
     const [viewingEmail, setViewingEmail] = useState(null);
     const [editingEmail, setEditingEmail] = useState(null);
-    const [isAuthorizing, setIsAuthorizing] = useState(false);
-    const [isSending, setIsSending] = useState(false);
     const [isVerifying, setIsVerifying] = useState({});
 
     useEffect(() => {
@@ -29,69 +26,11 @@ const EmailManagement = () => {
         }
     };
 
-    const handleSelectEmail = (emailId) => {
-        setSelectedEmails(prev => 
-            prev.includes(emailId) 
-                ? prev.filter(id => id !== emailId)
-                : [...prev, emailId]
-        );
-    };
-
-    const handleSelectAll = () => {
-        const filteredEmails = getFilteredEmails();
-        if (selectedEmails.length === filteredEmails.length) {
-            setSelectedEmails([]);
-        } else {
-            setSelectedEmails(filteredEmails.map(email => email.id));
-        }
-    };
-
-    const handleAuthorize = async () => {
-        if (selectedEmails.length === 0) {
-            alert('Please select emails to authorize');
-            return;
-        }
-
-        setIsAuthorizing(true);
-        try {
-            // This would be implemented in the backend
-            await emailService.authorizeEmails(selectedEmails);
-            await loadEmails();
-            setSelectedEmails([]);
-            alert(`${selectedEmails.length} emails authorized successfully`);
-        } catch (error) {
-            console.error('Failed to authorize emails:', error);
-            alert('Failed to authorize emails: ' + error.message);
-        } finally {
-            setIsAuthorizing(false);
-        }
-    };
-
-    const handleSendEmails = async () => {
-        if (selectedEmails.length === 0) {
-            alert('Please select emails to send');
-            return;
-        }
-
-        setIsSending(true);
-        try {
-            // This would be implemented in the backend
-            await emailService.sendEmails(selectedEmails);
-            await loadEmails();
-            setSelectedEmails([]);
-            alert(`${selectedEmails.length} emails sent successfully`);
-        } catch (error) {
-            console.error('Failed to send emails:', error);
-            alert('Failed to send emails: ' + error.message);
-        } finally {
-            setIsSending(false);
-        }
-    };
-
     const handleSendSingleEmail = async (emailId) => {
         try {
             await emailService.sendEmails([emailId]);
             await loadEmails();
+            if (onDataChange) onDataChange(); // Trigger dashboard refresh
             alert('Email sent successfully');
         } catch (error) {
             console.error('Failed to send email:', error);
@@ -107,7 +46,7 @@ const EmailManagement = () => {
         try {
             await emailService.deleteEmail(emailId);
             await loadEmails();
-            setSelectedEmails(prev => prev.filter(id => id !== emailId));
+            if (onDataChange) onDataChange(); // Trigger dashboard refresh
         } catch (error) {
             console.error('Failed to delete email:', error);
             alert('Failed to delete email: ' + error.message);
@@ -119,6 +58,7 @@ const EmailManagement = () => {
         try {
             await emailService.verifyEmail(emailId);
             await loadEmails();
+            if (onDataChange) onDataChange(); // Trigger dashboard refresh
             alert('Email verified successfully');
         } catch (error) {
             console.error('Failed to verify email:', error);
@@ -133,6 +73,7 @@ const EmailManagement = () => {
             await emailService.updateEmail(emailId, updatedData);
             await loadEmails();
             setEditingEmail(null);
+            if (onDataChange) onDataChange(); // Trigger dashboard refresh
         } catch (error) {
             console.error('Failed to update email:', error);
             alert('Failed to update email: ' + error.message);
@@ -214,44 +155,6 @@ const EmailManagement = () => {
                 {/* Action Buttons */}
                 <div className="flex gap-3">
                     <button
-                        onClick={handleAuthorize}
-                        disabled={selectedEmails.length === 0 || isAuthorizing}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                            selectedEmails.length === 0 || isAuthorizing
-                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                : 'bg-blue-600 text-white hover:bg-blue-700'
-                        }`}
-                    >
-                        {isAuthorizing ? (
-                            <div className="flex items-center">
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                Authorizing...
-                            </div>
-                        ) : (
-                            `✓ Authorize (${selectedEmails.length})`
-                        )}
-                    </button>
-                    
-                    <button
-                        onClick={handleSendEmails}
-                        disabled={selectedEmails.length === 0 || isSending}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                            selectedEmails.length === 0 || isSending
-                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                : 'bg-green-600 text-white hover:bg-green-700'
-                        }`}
-                    >
-                        {isSending ? (
-                            <div className="flex items-center">
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                Sending...
-                            </div>
-                        ) : (
-                            `📧 Send (${selectedEmails.length})`
-                        )}
-                    </button>
-                    
-                    <button
                         onClick={loadEmails}
                         className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
                     >
@@ -262,7 +165,7 @@ const EmailManagement = () => {
 
             {/* Filter Tabs */}
             <div className="bg-white rounded-lg border border-gray-200 p-1 inline-flex">
-                {['all', 'draft', 'verified', 'authorized', 'sent', 'pending'].map((filterOption) => (
+                {['all', 'draft', 'authorized', 'sent', 'pending'].map((filterOption) => (
                     <button
                         key={filterOption}
                         onClick={() => setFilter(filterOption)}
@@ -279,11 +182,15 @@ const EmailManagement = () => {
 
             {/* Emails List */}
             <div className="bg-white rounded-lg border border-gray-200">
-                {emails.length === 0 ? (
+                {getFilteredEmails().length === 0 ? (
                     <div className="p-8 text-center">
-                        <span className="text-6xl mb-4 block">�</span>
-                        <h2 className="text-xl font-semibold text-gray-900 mb-2">No emails generated yet</h2>
-                        <p className="text-gray-600">Generate your first email campaign to see them here</p>
+                        <span className="text-6xl mb-4 block">📧</span>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                            {emails.length === 0 ? 'No emails generated yet' : `No ${filter === 'all' ? '' : filter} emails found`}
+                        </h2>
+                        <p className="text-gray-600">
+                            {emails.length === 0 ? 'Generate your first email campaign to see them here' : 'Try adjusting your filter or generate more emails'}
+                        </p>
                     </div>
                 ) : (
                     <div className="divide-y divide-gray-200">
@@ -300,7 +207,7 @@ const EmailManagement = () => {
                         </div>
 
                         {/* Email rows */}
-                        {emails.map((email) => (
+                        {getFilteredEmails().map((email) => (
                             <div key={email.id} className="p-4 hover:bg-gray-50 transition-colors">
                                 <div className="grid grid-cols-12 gap-4 items-center">
                                     <div className="col-span-2">
@@ -361,15 +268,10 @@ const EmailManagement = () => {
                                             </button>
                                             <button
                                                 onClick={() => handleSendSingleEmail(email.id)}
-                                                disabled={isSending}
-                                                className={`text-xs px-2 py-1 rounded border transition-colors ${
-                                                    isSending
-                                                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                                                        : 'text-green-600 hover:text-green-800 border-green-200 hover:bg-green-50'
-                                                }`}
+                                                className="text-green-600 hover:text-green-800 text-xs px-2 py-1 rounded border border-green-200 hover:bg-green-50 transition-colors"
                                                 title="Send Email"
                                             >
-                                                {isSending ? 'Sending...' : 'Send'}
+                                                Send
                                             </button>
                                         </div>
                                     </div>
