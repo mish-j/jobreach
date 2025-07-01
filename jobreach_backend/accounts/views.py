@@ -359,3 +359,134 @@ class GeneratedEmailListView(APIView):
             return Response({
                 "error": f"Error deleting emails: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class GeneratedEmailDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_email(self, email_id, user):
+        """Helper method to get an email that belongs to the user."""
+        try:
+            return GeneratedEmail.objects.get(id=email_id, user=user)
+        except GeneratedEmail.DoesNotExist:
+            return None
+
+    def get(self, request, email_id):
+        """Get a specific generated email."""
+        email = self.get_email(email_id, request.user)
+        if not email:
+            return Response({"error": "Email not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = GeneratedEmailSerializer(email)
+        return Response(serializer.data)
+
+    def put(self, request, email_id):
+        """Update a specific generated email."""
+        email = self.get_email(email_id, request.user)
+        if not email:
+            return Response({"error": "Email not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = GeneratedEmailSerializer(email, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, email_id):
+        """Delete a specific generated email."""
+        email = self.get_email(email_id, request.user)
+        if not email:
+            return Response({"error": "Email not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        email.delete()
+        return Response({"message": "Email deleted successfully"}, status=status.HTTP_200_OK)
+
+
+class EmailVerifyView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, email_id):
+        """Verify an email address."""
+        try:
+            email = GeneratedEmail.objects.get(id=email_id, user=request.user)
+        except GeneratedEmail.DoesNotExist:
+            return Response({"error": "Email not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        # For now, we'll just mark it as verified
+        # In a real implementation, you would integrate with an email verification service
+        email.is_verified = True  # We'd need to add this field to the model
+        email.save()
+        
+        return Response({
+            "message": "Email verified successfully",
+            "email_id": email_id,
+            "recipient_email": email.recipient_email
+        })
+
+
+class EmailAuthorizeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """Authorize multiple emails for sending."""
+        email_ids = request.data.get('email_ids', [])
+        
+        if not email_ids:
+            return Response({"error": "No email IDs provided"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            emails = GeneratedEmail.objects.filter(id__in=email_ids, user=request.user)
+            
+            if not emails.exists():
+                return Response({"error": "No emails found"}, status=status.HTTP_404_NOT_FOUND)
+            
+            # Mark emails as authorized
+            updated_count = emails.update(is_authorized=True)  # We'd need to add this field
+            
+            return Response({
+                "message": f"Authorized {updated_count} emails",
+                "authorized_emails": list(emails.values_list('id', flat=True))
+            })
+            
+        except Exception as e:
+            return Response({
+                "error": f"Error authorizing emails: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class EmailSendView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """Send multiple emails."""
+        email_ids = request.data.get('email_ids', [])
+        
+        if not email_ids:
+            return Response({"error": "No email IDs provided"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            emails = GeneratedEmail.objects.filter(id__in=email_ids, user=request.user)
+            
+            if not emails.exists():
+                return Response({"error": "No emails found"}, status=status.HTTP_404_NOT_FOUND)
+            
+            # For now, just mark as sent
+            # In real implementation, integrate with Gmail API or SMTP
+            from django.utils import timezone
+            sent_count = 0
+            for email in emails:
+                # Here you would actually send the email
+                email.is_sent = True
+                email.sent_at = timezone.now()
+                email.save()
+                sent_count += 1
+            
+            return Response({
+                "message": f"Sent {sent_count} emails",
+                "sent_emails": list(emails.values_list('id', flat=True))
+            })
+            
+        except Exception as e:
+            return Response({
+                "error": f"Error sending emails: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

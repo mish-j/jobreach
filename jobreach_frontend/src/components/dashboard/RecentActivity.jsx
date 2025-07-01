@@ -12,15 +12,15 @@ const RecentActivity = () => {
     const loadRecentEmails = async () => {
         try {
             const emails = await emailService.getGeneratedEmails();
-            // Get the 5 most recent emails
+            // Get the 5 most recent emails with their actual status
             const recentEmails = emails.slice(0, 5).map(email => ({
                 id: email.id,
                 name: email.recipient_name,
                 company: email.recipient_company,
                 position: email.recipient_position || 'N/A',
-                status: 'draft', // Default status for now
+                status: email.status || 'draft', // Use actual status from backend
                 date: new Date(email.generated_at).toLocaleDateString(),
-                icon: '📧'
+                icon: getActivityIcon(email.status || 'draft')
             }));
             setActivities(recentEmails);
         } catch (error) {
@@ -31,12 +31,28 @@ const RecentActivity = () => {
         }
     };
 
+    const getActivityIcon = (status) => {
+        const iconMap = {
+            'draft': '📝',
+            'verified': '✅',
+            'authorized': '🔒',
+            'sent': '📤',
+            'pending': '⏳'
+        };
+        return iconMap[status] || '📧';
+    };
+
     const getStatusBadge = (status) => {
         const statusConfig = {
             'draft': {
                 bg: 'bg-gray-100',
                 text: 'text-gray-800',
                 label: 'draft'
+            },
+            'verified': {
+                bg: 'bg-purple-100',
+                text: 'text-purple-800',
+                label: 'verified'
             },
             'authorized': {
                 bg: 'bg-blue-100',
@@ -47,6 +63,11 @@ const RecentActivity = () => {
                 bg: 'bg-green-100',
                 text: 'text-green-800',
                 label: 'sent'
+            },
+            'pending': {
+                bg: 'bg-yellow-100',
+                text: 'text-yellow-800',
+                label: 'pending'
             }
         };
 

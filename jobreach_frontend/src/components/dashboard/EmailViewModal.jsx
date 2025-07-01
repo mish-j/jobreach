@@ -1,6 +1,6 @@
 import React from 'react';
 
-const EmailViewModal = ({ email, onClose }) => {
+const EmailViewModal = ({ email, onClose, onEdit }) => {
     if (!email) return null;
 
     return (
@@ -68,8 +68,8 @@ const EmailViewModal = ({ email, onClose }) => {
                     </button>
                     <button
                         onClick={() => {
-                            // TODO: Implement edit functionality
-                            console.log('Edit email', email.id);
+                            onClose();
+                            if (onEdit) onEdit(email);
                         }}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                     >

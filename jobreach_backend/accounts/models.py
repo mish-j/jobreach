@@ -42,6 +42,12 @@ class GeneratedEmail(models.Model):
     email_body = models.TextField()
     generated_at = models.DateTimeField(auto_now_add=True)
     
+    # Status fields
+    is_verified = models.BooleanField(default=False)
+    is_authorized = models.BooleanField(default=False)
+    is_sent = models.BooleanField(default=False)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    
     class Meta:
         unique_together = ['user', 'resume', 'contact_list', 'recipient_email']
     

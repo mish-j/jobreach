@@ -70,13 +70,27 @@ class ContactListSerializer(serializers.ModelSerializer):
 
 
 class GeneratedEmailSerializer(serializers.ModelSerializer):
+    status = serializers.SerializerMethodField()
+    
     class Meta:
         model = GeneratedEmail
         fields = [
             'id', 'recipient_name', 'recipient_email', 'recipient_company', 
-            'recipient_position', 'email_subject', 'email_body', 'generated_at'
+            'recipient_position', 'email_subject', 'email_body', 'generated_at',
+            'is_verified', 'is_authorized', 'is_sent', 'sent_at', 'status'
         ]
-        read_only_fields = ['id', 'generated_at']
+        read_only_fields = ['id', 'generated_at', 'status']
+    
+    def get_status(self, obj):
+        """Return the status of the email based on its state."""
+        if obj.is_sent:
+            return 'sent'
+        elif obj.is_authorized:
+            return 'authorized'
+        elif obj.is_verified:
+            return 'verified'
+        else:
+            return 'draft'
 
 
 class EmailGenerationRequestSerializer(serializers.Serializer):

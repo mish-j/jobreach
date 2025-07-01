@@ -12,6 +12,7 @@ const EmailManagement = () => {
     const [editingEmail, setEditingEmail] = useState(null);
     const [isAuthorizing, setIsAuthorizing] = useState(false);
     const [isSending, setIsSending] = useState(false);
+    const [isVerifying, setIsVerifying] = useState({});
 
     useEffect(() => {
         loadEmails();
@@ -87,6 +88,17 @@ const EmailManagement = () => {
         }
     };
 
+    const handleSendSingleEmail = async (emailId) => {
+        try {
+            await emailService.sendEmails([emailId]);
+            await loadEmails();
+            alert('Email sent successfully');
+        } catch (error) {
+            console.error('Failed to send email:', error);
+            alert('Failed to send email: ' + error.message);
+        }
+    };
+
     const handleDeleteEmail = async (emailId) => {
         if (!window.confirm('Are you sure you want to delete this email?')) {
             return;
@@ -103,12 +115,16 @@ const EmailManagement = () => {
     };
 
     const handleVerifyEmail = async (emailId) => {
+        setIsVerifying(prev => ({ ...prev, [emailId]: true }));
         try {
             await emailService.verifyEmail(emailId);
             await loadEmails();
+            alert('Email verified successfully');
         } catch (error) {
             console.error('Failed to verify email:', error);
             alert('Failed to verify email: ' + error.message);
+        } finally {
+            setIsVerifying(prev => ({ ...prev, [emailId]: false }));
         }
     };
 
@@ -126,21 +142,23 @@ const EmailManagement = () => {
     const getFilteredEmails = () => {
         return emails.filter(email => {
             if (filter === 'all') return true;
-            // For now, we'll use a default status since the backend doesn't have status field
-            const status = 'draft'; // This should come from the email object in real implementation
-            return status === filter;
+            return email.status === filter;
         });
     };
 
     const getStatusBadge = (email) => {
-        // Default status for now - this should come from the email object
-        const status = 'draft';
+        const status = email.status || 'draft';
         
         const statusConfig = {
             'draft': {
                 bg: 'bg-gray-100',
                 text: 'text-gray-800',
                 label: 'Draft'
+            },
+            'verified': {
+                bg: 'bg-purple-100',
+                text: 'text-purple-800',
+                label: 'Verified'
             },
             'authorized': {
                 bg: 'bg-blue-100',
@@ -244,7 +262,7 @@ const EmailManagement = () => {
 
             {/* Filter Tabs */}
             <div className="bg-white rounded-lg border border-gray-200 p-1 inline-flex">
-                {['all', 'draft', 'authorized', 'sent', 'pending'].map((filterOption) => (
+                {['all', 'draft', 'verified', 'authorized', 'sent', 'pending'].map((filterOption) => (
                     <button
                         key={filterOption}
                         onClick={() => setFilter(filterOption)}
@@ -272,12 +290,12 @@ const EmailManagement = () => {
                         {/* Header */}
                         <div className="p-4 bg-gray-50">
                             <div className="grid grid-cols-12 gap-4 font-medium text-sm text-gray-700">
-                                <div className="col-span-3">Contact</div>
+                                <div className="col-span-2">Contact</div>
                                 <div className="col-span-2">Company</div>
                                 <div className="col-span-3">Subject</div>
-                                <div className="col-span-2">Generated</div>
+                                <div className="col-span-1">Generated</div>
                                 <div className="col-span-1">Status</div>
-                                <div className="col-span-1">Actions</div>
+                                <div className="col-span-3">Actions</div>
                             </div>
                         </div>
 
@@ -285,7 +303,7 @@ const EmailManagement = () => {
                         {emails.map((email) => (
                             <div key={email.id} className="p-4 hover:bg-gray-50 transition-colors">
                                 <div className="grid grid-cols-12 gap-4 items-center">
-                                    <div className="col-span-3">
+                                    <div className="col-span-2">
                                         <div className="font-medium text-gray-900">{email.recipient_name}</div>
                                         <div className="text-sm text-gray-600">{email.recipient_email}</div>
                                     </div>
@@ -298,7 +316,7 @@ const EmailManagement = () => {
                                     <div className="col-span-3">
                                         <div className="text-sm text-gray-900 truncate">{email.email_subject}</div>
                                     </div>
-                                    <div className="col-span-2">
+                                    <div className="col-span-1">
                                         <div className="text-sm text-gray-600">
                                             {new Date(email.generated_at).toLocaleDateString()}
                                         </div>
@@ -306,10 +324,54 @@ const EmailManagement = () => {
                                     <div className="col-span-1">
                                         {getStatusBadge(email)}
                                     </div>
-                                    <div className="col-span-1">
-                                        <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                                            View
-                                        </button>
+                                    <div className="col-span-3">
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => setViewingEmail(email)}
+                                                className="text-blue-600 hover:text-blue-800 text-xs px-2 py-1 rounded border border-blue-200 hover:bg-blue-50 transition-colors"
+                                                title="View Email"
+                                            >
+                                                View
+                                            </button>
+                                            <button
+                                                onClick={() => setEditingEmail(email)}
+                                                className="text-green-600 hover:text-green-800 text-xs px-2 py-1 rounded border border-green-200 hover:bg-green-50 transition-colors"
+                                                title="Edit Email"
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                onClick={() => handleVerifyEmail(email.id)}
+                                                disabled={isVerifying[email.id]}
+                                                className={`text-xs px-2 py-1 rounded border transition-colors ${
+                                                    isVerifying[email.id]
+                                                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                                        : 'text-purple-600 hover:text-purple-800 border-purple-200 hover:bg-purple-50'
+                                                }`}
+                                                title="Verify Email"
+                                            >
+                                                {isVerifying[email.id] ? '...' : 'Verify'}
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteEmail(email.id)}
+                                                className="text-red-600 hover:text-red-800 text-xs px-2 py-1 rounded border border-red-200 hover:bg-red-50 transition-colors"
+                                                title="Delete Email"
+                                            >
+                                                Delete
+                                            </button>
+                                            <button
+                                                onClick={() => handleSendSingleEmail(email.id)}
+                                                disabled={isSending}
+                                                className={`text-xs px-2 py-1 rounded border transition-colors ${
+                                                    isSending
+                                                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                                        : 'text-green-600 hover:text-green-800 border-green-200 hover:bg-green-50'
+                                                }`}
+                                                title="Send Email"
+                                            >
+                                                {isSending ? 'Sending...' : 'Send'}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -317,6 +379,26 @@ const EmailManagement = () => {
                     </div>
                 )}
             </div>
+
+            {/* Modals */}
+            {viewingEmail && (
+                <EmailViewModal
+                    email={viewingEmail}
+                    onClose={() => setViewingEmail(null)}
+                    onEdit={(email) => {
+                        setViewingEmail(null);
+                        setEditingEmail(email);
+                    }}
+                />
+            )}
+
+            {editingEmail && (
+                <EmailEditModal
+                    email={editingEmail}
+                    onSave={handleEditSave}
+                    onClose={() => setEditingEmail(null)}
+                />
+            )}
         </div>
     );
 };

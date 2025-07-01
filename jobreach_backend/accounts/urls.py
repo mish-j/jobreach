@@ -1,7 +1,8 @@
 from django.urls import path
 from .views import (
     RegisterView, CurrentUserView, ResumeUploadView, ContactListUploadView,
-    EmailGenerationView, GeneratedEmailListView
+    EmailGenerationView, GeneratedEmailListView, GeneratedEmailDetailView,
+    EmailVerifyView, EmailAuthorizeView, EmailSendView
 )
 from .gmail_views import (
     GmailAuthURLView, GmailAuthCallbackView, GmailAuthStatusView,
@@ -29,6 +30,12 @@ urlpatterns = [
     # Email Generation endpoints
     path('generate-emails/', EmailGenerationView.as_view(), name='generate-emails'),
     path('generated-emails/', GeneratedEmailListView.as_view(), name='generated-emails'),
+    path('generated-emails/<int:email_id>/', GeneratedEmailDetailView.as_view(), name='generated-email-detail'),
+    
+    # Email operations
+    path('verify-email/<int:email_id>/', EmailVerifyView.as_view(), name='verify-email'),
+    path('authorize-emails/', EmailAuthorizeView.as_view(), name='authorize-emails'),
+    path('send-emails/', EmailSendView.as_view(), name='send-emails'),
     
     # Gmail Integration endpoints
     path('gmail/auth-url/', GmailAuthURLView.as_view(), name='gmail-auth-url'),
