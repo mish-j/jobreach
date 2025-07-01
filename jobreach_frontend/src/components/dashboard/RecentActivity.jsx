@@ -1,35 +1,35 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { emailService } from '../../utils/emailService';
 
 const RecentActivity = () => {
-    const activities = [
-        {
-            id: 1,
-            name: 'John Smith',
-            company: 'TechCorp Inc.',
-            position: 'Senior Software Engineer',
-            status: 'draft',
-            date: '2025-01-27',
-            icon: '📧'
-        },
-        {
-            id: 2,
-            name: 'Sarah Johnson',
-            company: 'Innovate Solutions',
-            position: 'Frontend Developer',
-            status: 'authorized',
-            date: '2025-01-26',
-            icon: '📧'
-        },
-        {
-            id: 3,
-            name: 'Mike Chen',
-            company: 'StartupIO',
-            position: 'Full Stack Developer',
-            status: 'sent',
-            date: '2025-01-25',
-            icon: '📧'
+    const [activities, setActivities] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        loadRecentEmails();
+    }, []);
+
+    const loadRecentEmails = async () => {
+        try {
+            const emails = await emailService.getGeneratedEmails();
+            // Get the 5 most recent emails
+            const recentEmails = emails.slice(0, 5).map(email => ({
+                id: email.id,
+                name: email.recipient_name,
+                company: email.recipient_company,
+                position: email.recipient_position || 'N/A',
+                status: 'draft', // Default status for now
+                date: new Date(email.generated_at).toLocaleDateString(),
+                icon: '📧'
+            }));
+            setActivities(recentEmails);
+        } catch (error) {
+            console.error('Failed to load recent emails:', error);
+            setActivities([]);
+        } finally {
+            setIsLoading(false);
         }
-    ];
+    };
 
     const getStatusBadge = (status) => {
         const statusConfig = {
@@ -58,6 +58,25 @@ const RecentActivity = () => {
             </span>
         );
     };
+
+    if (isLoading) {
+        return (
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
+                <div className="animate-pulse space-y-4">
+                    {[1, 2, 3].map((i) => (
+                        <div key={i} className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+                            <div className="flex-1">
+                                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                                <div className="h-3 bg-gray-200 rounded w-1/2 mt-1"></div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-white rounded-lg border border-gray-200 p-6">

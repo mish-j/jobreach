@@ -3,6 +3,7 @@ import StatsCard from './StatsCard';
 import FileStatsCard from './FileStatsCard';
 import RecentActivity from './RecentActivity';
 import { fileService } from '../../utils/fileService';
+import { emailService } from '../../utils/emailService';
 
 const DashboardOverview = () => {
     const [stats, setStats] = useState({
@@ -21,15 +22,25 @@ const DashboardOverview = () => {
 
     const loadDashboardData = async () => {
         try {
-            const [resumes, csvs] = await Promise.all([
+            const [resumes, csvs, emails] = await Promise.all([
                 fileService.getResumes(),
-                fileService.getCsvFiles()
+                fileService.getCsvFiles(),
+                emailService.getGeneratedEmails()
             ]);
+
+            // Calculate email statistics
+            const totalEmails = emails.length;
+            const sentEmails = 0; // We'll need to implement email status tracking
+            const pendingAuth = 0; // We'll need to implement auth tracking
 
             setStats(prevStats => ({
                 ...prevStats,
                 resumeFiles: resumes.length,
-                csvFiles: csvs.length
+                csvFiles: csvs.length,
+                totalEmails,
+                sentEmails,
+                pendingAuth,
+                responseRate: totalEmails > 0 ? '24.3%' : '0%' // Mock response rate for now
             }));
         } catch (error) {
             console.error('Failed to load dashboard data:', error);

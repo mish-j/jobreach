@@ -16,7 +16,7 @@ const Dashboard = ({ user, onLogout }) => {
             case 'email-management':
                 return <EmailManagement />;
             case 'generate-emails':
-                return <GenerateEmails />;
+                return <GenerateEmails setActiveSection={setActiveSection} />;
             case 'file-management':
                 return <FileManagement />;
             case 'analytics':
