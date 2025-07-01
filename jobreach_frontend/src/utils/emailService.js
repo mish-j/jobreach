@@ -142,6 +142,63 @@ class EmailService {
 
         return response.json();
     }
+
+    async getGmailAuthUrl() {
+        const token = tokenUtils.getAccessToken();
+        
+        const response = await fetch(`${API_BASE_URL}/gmail/auth-url/`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return response.json();
+    }
+
+    async getGmailAuthStatus() {
+        const token = tokenUtils.getAccessToken();
+        
+        const response = await fetch(`${API_BASE_URL}/gmail/status/`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return response.json();
+    }
+
+    async revokeGmailAuth() {
+        const token = tokenUtils.getAccessToken();
+        
+        const response = await fetch(`${API_BASE_URL}/gmail/revoke/`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return response.json();
+    }
 }
 
 export const emailService = new EmailService();

@@ -10,6 +10,8 @@ const EmailManagement = ({ onDataChange }) => {
     const [viewingEmail, setViewingEmail] = useState(null);
     const [editingEmail, setEditingEmail] = useState(null);
     const [isVerifying, setIsVerifying] = useState({});
+    const [isAuthorizing, setIsAuthorizing] = useState(false);
+    const [isGmailAuthorized, setIsGmailAuthorized] = useState(false);
 
     useEffect(() => {
         loadEmails();
@@ -19,10 +21,74 @@ const EmailManagement = ({ onDataChange }) => {
         try {
             const emailData = await emailService.getGeneratedEmails();
             setEmails(emailData);
+            
+            // Check Gmail authorization status
+            const authStatus = await emailService.getGmailAuthStatus();
+            setIsGmailAuthorized(authStatus.authorized);
         } catch (error) {
             console.error('Failed to load emails:', error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleGmailAuthorize = async () => {
+        setIsAuthorizing(true);
+        try {
+            // Get Gmail OAuth URL from backend
+            const response = await emailService.getGmailAuthUrl();
+            const authUrl = response.authorization_url;
+            
+            // Open Gmail OAuth in a new window
+            const authWindow = window.open(
+                authUrl,
+                'gmail_auth',
+                'width=500,height=600,scrollbars=yes,resizable=yes'
+            );
+            
+            // Listen for OAuth completion
+            const checkClosed = setInterval(() => {
+                if (authWindow.closed) {
+                    clearInterval(checkClosed);
+                    // Check if authorization was successful
+                    checkGmailAuthStatus();
+                    setIsAuthorizing(false);
+                }
+            }, 1000);
+            
+        } catch (error) {
+            console.error('Failed to start Gmail authorization:', error);
+            alert('Failed to start Gmail authorization: ' + error.message);
+            setIsAuthorizing(false);
+        }
+    };
+
+    const checkGmailAuthStatus = async () => {
+        try {
+            const status = await emailService.getGmailAuthStatus();
+            if (status.authorized) {
+                alert('Gmail authorization successful! You can now send emails.');
+                await loadEmails();
+                if (onDataChange) onDataChange();
+            }
+        } catch (error) {
+            console.error('Failed to check Gmail auth status:', error);
+        }
+    };
+
+    const handleGmailRevoke = async () => {
+        if (!window.confirm('Are you sure you want to disconnect your Gmail account?')) {
+            return;
+        }
+        
+        try {
+            await emailService.revokeGmailAuth();
+            setIsGmailAuthorized(false);
+            alert('Gmail account disconnected successfully.');
+            if (onDataChange) onDataChange();
+        } catch (error) {
+            console.error('Failed to revoke Gmail authorization:', error);
+            alert('Failed to disconnect Gmail: ' + error.message);
         }
     };
 
@@ -154,6 +220,42 @@ const EmailManagement = ({ onDataChange }) => {
                 
                 {/* Action Buttons */}
                 <div className="flex gap-3">
+                    {isGmailAuthorized ? (
+                        <div className="flex gap-2">
+                            <button
+                                className="px-4 py-2 bg-green-600 text-white rounded-lg cursor-default"
+                                disabled
+                            >
+                                ✓ Gmail Authorized
+                            </button>
+                            <button
+                                onClick={handleGmailRevoke}
+                                className="px-2 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                                title="Disconnect Gmail"
+                            >
+                                🔓
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={handleGmailAuthorize}
+                            disabled={isAuthorizing}
+                            className={`px-4 py-2 rounded-lg transition-colors ${
+                                isAuthorizing
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                            }`}
+                        >
+                            {isAuthorizing ? (
+                                <div className="flex items-center">
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                    Authorizing Gmail...
+                                </div>
+                            ) : (
+                                '🔒 Authorize Gmail'
+                            )}
+                        </button>
+                    )}
                     <button
                         onClick={loadEmails}
                         className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"

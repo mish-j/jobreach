@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.http import HttpResponseRedirect
 from django.conf import settings
 from .gmail_service import GmailService
@@ -31,7 +31,7 @@ class GmailAuthURLView(APIView):
 
 class GmailAuthCallbackView(APIView):
     """Handle Gmail OAuth callback."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
     def get(self, request):
         """Handle OAuth callback from Gmail."""
@@ -52,9 +52,8 @@ class GmailAuthCallbackView(APIView):
             
             user_id = int(state.split('_')[1])
             
-            # Verify user matches current session
-            if user_id != request.user.id:
-                return HttpResponseRedirect(f"{settings.FRONTEND_URL}?gmail_auth=error&message=User mismatch")
+            # Note: Since this is AllowAny, we can't verify against request.user
+            # The state parameter contains the user_id and serves as verification
             
             gmail_service = GmailService()
             gmail_service.handle_authorization_callback(user_id, code, state)

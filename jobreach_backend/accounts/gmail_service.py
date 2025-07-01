@@ -1,6 +1,5 @@
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from django.conf import settings
@@ -11,6 +10,8 @@ import base64
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import logging
+import urllib.parse
+import secrets
 
 logger = logging.getLogger(__name__)
 
@@ -27,26 +28,48 @@ class GmailService:
     def get_authorization_url(self, user_id):
         """Generate Gmail OAuth authorization URL."""
         try:
+            logger.info(f"Starting Gmail authorization for user {user_id}")
+            
             if not self.credentials_file or not os.path.exists(self.credentials_file):
+                logger.error(f"Gmail credentials file not found: {self.credentials_file}")
                 raise Exception("Gmail credentials file not found. Please configure GMAIL_CREDENTIALS_FILE in settings.")
             
-            flow = Flow.from_client_secrets_file(
-                self.credentials_file,
-                scopes=self.SCOPES,
-                redirect_uri=self.redirect_uri
-            )
+            logger.info(f"Reading credentials from: {self.credentials_file}")
+            
+            # Read credentials from file
+            with open(self.credentials_file, 'r') as f:
+                credentials_data = json.load(f)
+            
+            client_config = credentials_data['web']
+            client_id = client_config['client_id']
+            
+            logger.info(f"Redirect URI: {self.redirect_uri}")
+            logger.info(f"Scopes: {self.SCOPES}")
             
             # Generate state parameter for security
-            state = f"user_{user_id}"
+            state = f"user_{user_id}_{secrets.token_urlsafe(16)}"
             
-            authorization_url, _ = flow.authorization_url(
-                access_type='offline',
-                include_granted_scopes='true',
-                state=state
-            )
+            # Store client config and state for callback
+            cache.set(f"gmail_state_{user_id}", {
+                'state': state,
+                'client_config': client_config
+            }, timeout=300)  # 5 minutes
             
-            # Store flow in cache for later use
-            cache.set(f"gmail_flow_{user_id}", flow, timeout=300)  # 5 minutes
+            # Build OAuth URL manually
+            params = {
+                'client_id': client_id,
+                'redirect_uri': self.redirect_uri,
+                'scope': ' '.join(self.SCOPES),
+                'response_type': 'code',
+                'access_type': 'offline',
+                'include_granted_scopes': 'true',
+                'state': state,
+                'prompt': 'consent'
+            }
+            
+            authorization_url = 'https://accounts.google.com/o/oauth2/v2/auth?' + urllib.parse.urlencode(params)
+            
+            logger.info(f"Authorization URL generated: {authorization_url}")
             
             return authorization_url
             
@@ -57,28 +80,60 @@ class GmailService:
     def handle_authorization_callback(self, user_id, code, state):
         """Handle Gmail OAuth callback and store credentials."""
         try:
+            # Retrieve state and client config from cache
+            stored_data = cache.get(f"gmail_state_{user_id}")
+            if not stored_data:
+                raise Exception("Authorization state not found or expired")
+            
             # Verify state parameter
-            expected_state = f"user_{user_id}"
-            if state != expected_state:
+            if state != stored_data['state']:
                 raise Exception("Invalid state parameter")
             
-            # Retrieve flow from cache
-            flow = cache.get(f"gmail_flow_{user_id}")
-            if not flow:
-                raise Exception("Authorization flow not found or expired")
+            client_config = stored_data['client_config']
             
-            # Exchange code for credentials
-            flow.fetch_token(code=code)
-            credentials = flow.credentials
+            # Exchange code for token
+            token_data = self._exchange_code_for_token(code, client_config)
+            
+            # Create credentials object
+            credentials = Credentials(
+                token=token_data['access_token'],
+                refresh_token=token_data.get('refresh_token'),
+                token_uri='https://oauth2.googleapis.com/token',
+                client_id=client_config['client_id'],
+                client_secret=client_config['client_secret'],
+                scopes=self.SCOPES
+            )
             
             # Store credentials for user
             self._store_user_credentials(user_id, credentials)
+            
+            # Clean up cache
+            cache.delete(f"gmail_state_{user_id}")
             
             return True
             
         except Exception as e:
             logger.error(f"Error handling Gmail authorization callback: {str(e)}")
             raise
+    
+    def _exchange_code_for_token(self, code, client_config):
+        """Exchange authorization code for access token."""
+        import requests
+        
+        token_url = 'https://oauth2.googleapis.com/token'
+        data = {
+            'client_id': client_config['client_id'],
+            'client_secret': client_config['client_secret'],
+            'code': code,
+            'grant_type': 'authorization_code',
+            'redirect_uri': self.redirect_uri
+        }
+        
+        response = requests.post(token_url, data=data)
+        if response.status_code != 200:
+            raise Exception(f"Token exchange failed: {response.text}")
+        
+        return response.json()
     
     def _store_user_credentials(self, user_id, credentials):
         """Store user's Gmail credentials securely."""

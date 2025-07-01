@@ -170,13 +170,20 @@ CORS_ALLOW_ALL_ORIGINS = True  # Remove this in production
 
 # API Keys and External Services
 OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
-GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
-GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default='')
+GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='473919090016-jsv82f6q49n7hgu45bo2gn3src9jm2tf.apps.googleusercontent.com')
+GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default='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')
 
 # Gmail Integration Settings
-GMAIL_CREDENTIALS_FILE = config('GMAIL_CREDENTIALS_FILE', default='')
+GMAIL_CREDENTIALS_FILE = str(BASE_DIR / 'gmail_credentials.json')
 GMAIL_REDIRECT_URI = config('GMAIL_REDIRECT_URI', default='http://localhost:8000/api/accounts/gmail/callback/')
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
+
+# Session Configuration for OAuth flows
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_SAVE_EVERY_REQUEST = True
 
 # Email settings
 EMAIL_DAILY_LIMIT = config('EMAIL_DAILY_LIMIT', default=50, cast=int)
