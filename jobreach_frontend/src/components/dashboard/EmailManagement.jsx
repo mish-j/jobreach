@@ -12,6 +12,7 @@ const EmailManagement = ({ onDataChange }) => {
     const [isVerifying, setIsVerifying] = useState({});
     const [isAuthorizing, setIsAuthorizing] = useState(false);
     const [isGmailAuthorized, setIsGmailAuthorized] = useState(false);
+    const [isSendingAll, setIsSendingAll] = useState(false);
 
     useEffect(() => {
         loadEmails();
@@ -146,6 +147,40 @@ const EmailManagement = ({ onDataChange }) => {
         }
     };
 
+    const handleSendAllVerified = async () => {
+        const verifiedEmails = emails.filter(email => email.status === 'verified');
+        
+        if (verifiedEmails.length === 0) {
+            alert('No verified emails found to send.');
+            return;
+        }
+        
+        if (!window.confirm(`Are you sure you want to send ${verifiedEmails.length} verified email(s)?`)) {
+            return;
+        }
+        
+        setIsSendingAll(true);
+        try {
+            const emailIds = verifiedEmails.map(email => email.id);
+            const response = await emailService.sendEmails(emailIds);
+            await loadEmails();
+            if (onDataChange) onDataChange(); // Trigger dashboard refresh
+            
+            // Handle detailed response
+            if (response.failed_count && response.failed_count > 0) {
+                alert(`Sent ${response.sent_count} email(s) successfully, but ${response.failed_count} failed. Check console for details.`);
+                console.error('Failed emails:', response.failed_emails);
+            } else {
+                alert(`Successfully sent ${response.sent_count} email(s)!`);
+            }
+        } catch (error) {
+            console.error('Failed to send verified emails:', error);
+            alert('Failed to send emails: ' + error.message);
+        } finally {
+            setIsSendingAll(false);
+        }
+    };
+
     const getFilteredEmails = () => {
         return emails.filter(email => {
             if (filter === 'all') return true;
@@ -220,6 +255,29 @@ const EmailManagement = ({ onDataChange }) => {
                 
                 {/* Action Buttons */}
                 <div className="flex gap-3">
+                    {/* Send All Verified Button */}
+                    {emails.filter(email => email.status === 'verified').length > 0 && (
+                        <button
+                            onClick={handleSendAllVerified}
+                            disabled={isSendingAll || !isGmailAuthorized}
+                            className={`px-4 py-2 rounded-lg transition-colors ${
+                                isSendingAll || !isGmailAuthorized
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-green-600 text-white hover:bg-green-700'
+                            }`}
+                            title={!isGmailAuthorized ? 'Please authorize Gmail first' : `Send ${emails.filter(email => email.status === 'verified').length} verified emails`}
+                        >
+                            {isSendingAll ? (
+                                <div className="flex items-center">
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                    Sending...
+                                </div>
+                            ) : (
+                                `📤 Send All Verified (${emails.filter(email => email.status === 'verified').length})`
+                            )}
+                        </button>
+                    )}
+                    
                     {isGmailAuthorized ? (
                         <div className="flex gap-2">
                             <button

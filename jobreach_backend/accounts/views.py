@@ -465,26 +465,67 @@ class EmailSendView(APIView):
             return Response({"error": "No email IDs provided"}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
+            from .gmail_service import GmailService
+            
             emails = GeneratedEmail.objects.filter(id__in=email_ids, user=request.user)
             
             if not emails.exists():
                 return Response({"error": "No emails found"}, status=status.HTTP_404_NOT_FOUND)
             
-            # For now, just mark as sent
-            # In real implementation, integrate with Gmail API or SMTP
+            # Check if user has Gmail authorization
+            gmail_service = GmailService()
+            if not gmail_service.is_user_authorized(request.user.id):
+                return Response({
+                    "error": "Gmail not authorized. Please authorize first."
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            
             from django.utils import timezone
             sent_count = 0
-            for email in emails:
-                # Here you would actually send the email
-                email.is_sent = True
-                email.sent_at = timezone.now()
-                email.save()
-                sent_count += 1
+            failed_count = 0
+            sent_emails = []
+            failed_emails = []
             
-            return Response({
+            for email in emails:
+                try:
+                    # Send email through Gmail API
+                    result = gmail_service.send_email(
+                        user_id=request.user.id,
+                        to_email=email.recipient_email,
+                        subject=email.email_subject,
+                        body=email.email_body,
+                        from_name=request.user.full_name if hasattr(request.user, 'full_name') else None
+                    )
+                    
+                    # Mark as sent
+                    email.is_sent = True
+                    email.sent_at = timezone.now()
+                    email.save()
+                    sent_count += 1
+                    sent_emails.append(email.id)
+                    
+                except Exception as send_error:
+                    failed_count += 1
+                    failed_emails.append({
+                        'id': email.id,
+                        'recipient_email': email.recipient_email,
+                        'error': str(send_error)
+                    })
+                    continue
+            
+            response_data = {
                 "message": f"Sent {sent_count} emails",
-                "sent_emails": list(emails.values_list('id', flat=True))
-            })
+                "sent_count": sent_count,
+                "sent_emails": sent_emails
+            }
+            
+            if failed_count > 0:
+                response_data.update({
+                    "failed_count": failed_count,
+                    "failed_emails": failed_emails,
+                    "message": f"Sent {sent_count} emails, {failed_count} failed"
+                })
+            
+            return Response(response_data)
             
         except Exception as e:
             return Response({
