@@ -1,4 +1,12 @@
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api';
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+    ? 'https://jobreach.onrender.com/api'
+    : (process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api');
+
+console.log('Environment variables:', {
+    NODE_ENV: process.env.NODE_ENV,
+    REACT_APP_API_BASE_URL: process.env.REACT_APP_API_BASE_URL,
+    API_BASE_URL: API_BASE_URL
+});
 
 // Helper function to make API requests
 const apiRequest = async (endpoint, options = {}) => {

@@ -1,6 +1,10 @@
 import { tokenUtils } from './api';
 
-export const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api') + '/accounts';
+const BASE_API_URL = process.env.NODE_ENV === 'production' 
+    ? 'https://jobreach.onrender.com/api'
+    : (process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api');
+
+export const API_BASE_URL = BASE_API_URL + '/accounts';
 
 class FileService {
     async uploadResume(file) {
