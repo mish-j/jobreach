@@ -28,7 +28,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-qv3(k$f94%oc=ecc2z$_h
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,jobreach.onrender.com', cast=lambda v: [s.strip() for s in v.split(',')])
 
 
 # Application definition
@@ -170,7 +170,8 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # React development server
     "http://127.0.0.1:3000",
-    "https://*.vercel.app",  # Your Vercel domain
+    "https://jobreach-mocha.vercel.app",  # Your Vercel domain
+    "https://jobreach-f2n1foc76-mahikas-projects-c430e3b0.vercel.app",  # Vercel preview domains
 ]
 
 # For development, you might want to allow all origins (NOT for production)
