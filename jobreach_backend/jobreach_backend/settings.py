@@ -170,8 +170,8 @@ CORS_ALLOW_ALL_ORIGINS = True  # Remove this in production
 
 # API Keys and External Services
 OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
-GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='473919090016-jsv82f6q49n7hgu45bo2gn3src9jm2tf.apps.googleusercontent.com')
-GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default='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')
+GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET')
 
 # Gmail Integration Settings
 GMAIL_CREDENTIALS_FILE = str(BASE_DIR / 'gmail_credentials.json')
